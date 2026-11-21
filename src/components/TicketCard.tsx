@@ -27,5 +27,11 @@ export function TicketCard({ticket, receipt = false}: {ticket: ManagedTicket; re
     <label>Original complaint · {ticket.detectedLanguage}</label><p className="original">{ticket.originalText}</p>
     {ticket.photoDataUrl && <img className="photo" src={ticket.photoDataUrl} alt="Submitted complaint evidence"/>}
     {ticket.photoObservation && <p>{ticket.photoObservation}</p>}
+    {!!ticket.history?.length && <section className="controls"><h2>Ticket history</h2>
+      {ticket.history.map((event,index) => <div key={index} className="reason">
+        <strong>{event.type === "resolved" ? "Marked resolved" : "Citizen reported issue unresolved"}</strong>
+        <p><time dateTime={event.at}>{new Date(event.at).toLocaleString("en-IN", {dateStyle:"medium", timeStyle:"short"})}</time></p>
+        {event.explanation && <p className="original">{event.explanation}</p>}
+      </div>)}</section>}
   </section>;
 }

@@ -4,7 +4,7 @@ import { Landmark, LayoutList, Search, SquarePen } from "lucide-react";
 import { Dashboard } from "./components/Dashboard";
 import { IntakeForm } from "./components/IntakeForm";
 import { TrackTicket } from "./components/TrackTicket";
-import { editTicket, loadTickets, resetTickets } from "./lib/storage";
+import { editTicket, loadTickets, reopenTicket, resetTickets, resolveTickets } from "./lib/storage";
 import "@fontsource/dm-sans/latin-400.css";
 import "@fontsource/dm-sans/latin-600.css";
 import "./style.css";
@@ -22,11 +22,11 @@ function App() {
   return <><header><div className="bar"><div className="brand"><Landmark/><div>Civix<small>Municipal AI Triage</small></div></div>
     <nav aria-label="Main navigation">{tabs.map(([name,Icon])=><button key={name} aria-current={view===name?"page":undefined} onClick={()=>setView(name)}>
       <Icon size={16}/>{name}{name==="Officer Command Center" && <b>{tickets.filter(t=>t.status!=="Resolved").length}</b>}</button>)}</nav></div></header>
-    <main><div hidden={view!=="Report Issue"}><IntakeForm onSave={(rows,ticket,message)=>{
+    <main><div hidden={view!=="Report Issue"}><IntakeForm active={view==="Report Issue"} onSave={(rows,ticket,message)=>{
       setTickets(rows);setSelected(ticket.id);setNotice(message);setView("Track Ticket");
     }}/></div>
-    {view==="Track Ticket" && <TrackTicket tickets={tickets} selected={selected} notice={notice} onSelect={id=>{setSelected(id);setNotice("");}}/>}
-    {view==="Officer Command Center" && <Dashboard tickets={tickets} onEdit={(id,edit)=>setTickets(editTicket(id,edit))}
+    {view==="Track Ticket" && <TrackTicket tickets={tickets} selected={selected} notice={notice} onReopen={(id, explanation)=>setTickets(reopenTicket(id, explanation))} onSelect={id=>{setSelected(id);setNotice("");}}/>}
+    {view==="Officer Command Center" && <Dashboard tickets={tickets} onResolveGroup={ids=>setTickets(resolveTickets(ids))} onEdit={(id,edit)=>setTickets(editTicket(id,edit))}
       onReset={()=>{setTickets(resetTickets());setSelected("");setNotice("");}}/>}</main></>;
 }
 createRoot(document.getElementById("root")!).render(<App/>);

@@ -50,5 +50,6 @@ export const DEPARTMENT_BY_CATEGORY = {
 
 export const STATUSES = ["New", "In Progress", "Resolved"] as const;
 export type Status = typeof STATUSES[number];
-export type ManagedTicket = Ticket & { status: Status; officerAdjusted: boolean };
+export type TicketEvent = { type: "resolved" | "reopened"; at: string; explanation?: string };
+export type ManagedTicket = Ticket & { status: Status; officerAdjusted: boolean; history?: TicketEvent[] };
 export type OfficerEdit = Partial<Pick<ManagedTicket, "status" | "department" | "severity">>;

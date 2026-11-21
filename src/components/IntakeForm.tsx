@@ -3,20 +3,22 @@ import { ArrowRight, Camera, ShieldCheck, ArrowUpRight, X } from "lucide-react";
 import { preparePhoto } from "../lib/photo";
 import { triage } from "../lib/triage";
 import { addTicket } from "../lib/storage";
+import { VoiceInput } from "./VoiceInput";
 
 import type { ManagedTicket } from "../lib/ticket";
 
-export function IntakeForm({onSave}: {onSave: (rows: ManagedTicket[], ticket: ManagedTicket, notice: string) => void}) {
+export function IntakeForm({onSave, active}: {active: boolean; onSave: (rows: ManagedTicket[], ticket: ManagedTicket, notice: string) => void}) {
   const [text,setText] = useState("");
   const [photo,setPhoto] = useState<string>();
   const [loading,setLoading] = useState(false);
   const [processing,setProcessing] = useState(false);
+  const [voiceBusy,setVoiceBusy] = useState(false);
   const [error,setError] = useState("");
   const upload = useRef<HTMLInputElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (loading || processing) return;
+    if (loading || processing || voiceBusy) return;
     setError("");
     if (text.trim().length < 5) { setError("Enter at least 5 characters."); input.current?.focus(); return; }
     setLoading(true);
@@ -33,6 +35,10 @@ export function IntakeForm({onSave}: {onSave: (rows: ManagedTicket[], ticket: Ma
       <label htmlFor="complaint">Describe the issue</label>
       <p id="languages" className="hint">Write in English, Hindi, Kannada or Tamil.</p>
       <textarea ref={input} id="complaint" aria-describedby="languages privacy" value={text} onChange={e => setText(e.target.value)} placeholder="What happened, and where did you notice it?"/>
+      <VoiceInput active={active} onBusy={setVoiceBusy} onTranscript={transcript => {
+        setText(previous => previous.trim() ? previous.trimEnd() + " " + transcript : transcript);
+        input.current?.focus();
+      }}/>
       <div className="fieldhead"><label htmlFor="photo">Supporting photo</label><span>Optional</span></div>
       <div className="upload"><Camera aria-hidden="true"/><span>{photo ? "Replace photo" : "Choose a photo"}</span>
       <input ref={upload} id="photo" type="file" accept="image/*" onChange={async e => {
@@ -45,7 +51,7 @@ export function IntakeForm({onSave}: {onSave: (rows: ManagedTicket[], ticket: Ma
       </fieldset>
       <p id="privacy" className="privacy"><ShieldCheck size={17}/>Do not include personal details. Text and photos are sent to Gemini for triage.</p>
       {error && <p role="alert" className="notice">{error}</p>}
-      <button className="primary" disabled={loading || processing}>{loading ? "Analyzing & Routing..." : processing ? "Preparing photo…" : "Submit complaint"}<ArrowRight size={18}/></button>
+      <button className="primary" disabled={loading || processing || voiceBusy}>{loading ? "Analyzing & Routing..." : processing ? "Preparing photo…" : "Submit complaint"}<ArrowRight size={18}/></button>
     </form><aside className="panel samples"><h2>Quick Demo Samples</h2><p>Choose a sample to fill the report in one click.</p>
       {samples.map(([language, title, complaint]) => <button key={language} disabled={loading || processing} onClick={() => {
         setText(complaint); setError(""); input.current?.focus();

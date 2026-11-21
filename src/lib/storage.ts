@@ -70,9 +70,37 @@ export function addTicket(input: Ticket) {
 export function editTicket(id: string, edit: OfficerEdit) {
   const rows = loadTickets().map(ticket => ticket.id !== id ? ticket : {
     ...ticket, ...edit,
+    history: edit.status === "Resolved" && ticket.status !== "Resolved"
+      ? [...(ticket.history ?? []), { type: "resolved" as const, at: new Date().toISOString() }]
+      : ticket.history,
     officerAdjusted: ticket.officerAdjusted || edit.severity !== undefined || edit.department !== undefined,
   });
   save(rows);
   return rows;
 }
 
+
+export function reopenTicket(id: string, explanation: string) {
+  const message = explanation.trim();
+  if (!message) throw new Error("Explain why the issue is still unresolved.");
+  const rows = loadTickets();
+  const ticket = rows.find(row => row.id === id);
+  if (!ticket || ticket.status !== "Resolved") throw new Error("This ticket is no longer resolved. Refresh its status and try again.");
+  ticket.history = [...(ticket.history ?? []), { type: "reopened", at: new Date().toISOString(), explanation: message }];
+  ticket.status = "In Progress";
+  save(rows);
+  return rows;
+}
+export function resolveTickets(ids: string[]) {
+  const selected = new Set(ids);
+  const rows = loadTickets().map(ticket => {
+    if (!selected.has(ticket.id) || ticket.status === "Resolved") return ticket;
+    return {
+      ...ticket,
+      status: "Resolved" as const,
+      history: [...(ticket.history ?? []), { type: "resolved" as const, at: new Date().toISOString() }],
+    };
+  });
+  save(rows);
+  return rows;
+}
