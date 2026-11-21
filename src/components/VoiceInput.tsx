@@ -77,7 +77,7 @@ export function VoiceInput({ active, onTranscript, onBusy }: {
         release();
         if (current !== generation.current) return;
         const audio = new Blob(chunks, { type: mimeType === "audio/mp4" ? "audio/m4a" : mimeType });
-        if (!audio.size) { setState("idle"); onBusy(false); setMessage(t("No audio was recorded. Please try again.")); return; }
+        if (!audio.size) { setState("idle"); onBusy(false); setMessage("Recorded audio was empty — check your microphone input device."); return; }
         setState("transcribing");
         const abort = new AbortController();
         controller.current = abort;
@@ -87,8 +87,8 @@ export function VoiceInput({ active, onTranscript, onBusy }: {
           if (current !== generation.current) return;
           onTranscript(transcript);
           setMessage(t("Transcript added. Please review and edit it before submitting."));
-        } catch {
-          if (current === generation.current) setMessage(t("Transcription failed or no speech was recognized. Please try again or type your complaint."));
+        } catch (error) {
+          if (current === generation.current) setMessage(error instanceof Error && error.message ? error.message : t("Transcription failed or no speech was recognized. Please try again or type your complaint."));
         } finally {
           clearTimeout(timeout);
           if (current === generation.current) { controller.current = null; setState("idle"); onBusy(false); }
@@ -107,7 +107,8 @@ export function VoiceInput({ active, onTranscript, onBusy }: {
     }
   }
 
-  return <div className="voice">
+  return <div className="voice tactile-well" data-state={state}>
+      <div className="folder-strip">{t("Complaint details")} / {t("Speak your complaint")}</div>
     <button type="button" className="secondary voice-button" disabled={state === "requesting" || state === "transcribing"}
       onClick={() => state === "recording" ? recorder.current?.stop() : start()}>
       {state === "recording" ? <Square size={16}/> : <Mic size={16}/>}
@@ -115,6 +116,6 @@ export function VoiceInput({ active, onTranscript, onBusy }: {
     </button>
     <span className="hint">{state === "recording" ? t("Recording… up to 60 seconds") : t("English, Hindi, Kannada or Tamil · up to 60 seconds")}</span>
     <p className="hint">{t("Your recording is sent to ElevenLabs for transcription.")}</p>
-    {message && <p role="status" className="notice">{message}</p>}
+    {message && <p role="status" className={"notice " + (message === t("Transcript added. Please review and edit it before submitting.") ? "notice--success" : "notice--error")}>{message}</p>}
   </div>;
 }
