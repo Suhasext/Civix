@@ -26,3 +26,7 @@ input:not([type=file]),select,textarea{background:white;border:1px solid #bcc8d6
 .group-action{margin:12px 18px}
 .voice{margin-top:12px}.voice-button{display:inline-flex;align-items:center;gap:7px;margin-right:10px}.voice>p.hint{margin-top:7px}.voice .notice{margin-bottom:8px}
 .citizen-reports{max-width:720px;display:grid;gap:18px}.role-select{max-width:600px;margin:40px auto}.role-select .pills{margin-top:22px}
+
+.after-upload { margin-bottom: 12px; }
+.after-preview { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.after-preview .photo { max-width: min(100%, 270px); }
