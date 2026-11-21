@@ -3,12 +3,16 @@ import { ArrowRight, Camera, ShieldCheck, ArrowUpRight, X } from "lucide-react";
 import { preparePhoto } from "../lib/photo";
 import { triage } from "../lib/triage";
 import { addTicket } from "../lib/storage";
+import { captureLocation } from "../lib/location";
+import type { LocationEvidence } from "../lib/ticket";
 import { VoiceInput } from "./VoiceInput";
 
 import type { ManagedTicket } from "../lib/ticket";
 
 export function IntakeForm({onSave, active}: {active: boolean; onSave: (rows: ManagedTicket[], ticket: ManagedTicket, notice: string) => void}) {
   const [text,setText] = useState("");
+  const [location,setLocation] = useState<LocationEvidence>();
+  const [locationMessage,setLocationMessage] = useState("");
   const [photo,setPhoto] = useState<string>();
   const [loading,setLoading] = useState(false);
   const [processing,setProcessing] = useState(false);
@@ -23,9 +27,9 @@ export function IntakeForm({onSave, active}: {active: boolean; onSave: (rows: Ma
     if (text.trim().length < 5) { setError("Enter at least 5 characters."); input.current?.focus(); return; }
     setLoading(true);
     try {
-      const {ticket, rows} = addTicket(await triage(text, photo));
+      const {ticket, rows} = addTicket(await triage(text, photo), location);
       const notice = photo && !ticket.photoDataUrl ? "Browser storage is full. Your ticket was saved without its photo." : "";
-      onSave(rows, ticket, notice); setPhoto(undefined); setText("");
+      onSave(rows, ticket, notice); setPhoto(undefined); setLocation(undefined); setLocationMessage(""); setText("");
     } catch { setError("Your ticket could not be saved. Check browser storage and try again."); }
     finally { setLoading(false); }
   }
@@ -39,6 +43,11 @@ export function IntakeForm({onSave, active}: {active: boolean; onSave: (rows: Ma
         setText(previous => previous.trim() ? previous.trimEnd() + " " + transcript : transcript);
         input.current?.focus();
       }}/>
+      <div className="fieldhead"><button type="button" className="secondary" onClick={async () => {
+        setLocationMessage("Capturing location…");
+        try { setLocation(await captureLocation()); setLocationMessage("Location attached."); }
+        catch (err) { setLocationMessage((err as Error).message); }
+      }}>Attach my current location (optional)</button></div><p className="hint">Used only to help the officer verify the fix. Not shown publicly.</p><p role="status" className="hint">{locationMessage}</p>
       <div className="fieldhead"><label htmlFor="photo">Supporting photo</label><span>Optional</span></div>
       <div className="upload"><Camera aria-hidden="true"/><span>{photo ? "Replace photo" : "Choose a photo"}</span>
       <input ref={upload} id="photo" type="file" accept="image/*" onChange={async e => {

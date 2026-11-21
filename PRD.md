@@ -417,3 +417,11 @@ Do not overwrite previous rows in `PROMPT_LOG.md`.
 | 3:30–4:00 | Demo rehearsal, pitch, final prompt log, submission |
 
 Features are locked at the 3-hour mark; the last hour is for testing and presentation only.
+## Approved scope change
+
+Citizen and officer demo roles support resolution evidence, optional one-time location capture, advisory before-and-after photo checks, and citizen confirmation or dispute.
+
+- **AC8** An officer supplies an after photo and a note of at least 10 characters before resolving.
+- **AC9** Optional captured locations are compared locally with distance and accuracy thresholds.
+- **AC10** Gemini may suggest whether before-and-after photos show a fix. Resolution remains an officer decision.
+- **AC11** A citizen can confirm or dispute a resolution. Disputes reopen and raise severity, with escalation after repeated disputes.

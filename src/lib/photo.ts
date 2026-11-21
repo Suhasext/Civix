@@ -1,11 +1,11 @@
-export async function preparePhoto(file: File): Promise<string> {
+export async function preparePhoto(file: File, maxDimension = 800): Promise<string> {
   if (!file.type.startsWith("image/")) throw Error("Choose an image file.");
   const url = URL.createObjectURL(file);
   try {
     const image = new Image();
     image.src = url;
     await image.decode();
-    const ratio = Math.min(1, 800 / Math.max(image.width, image.height));
+    const ratio = Math.min(1, maxDimension / Math.max(image.width, image.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.width * ratio));
     canvas.height = Math.max(1, Math.round(image.height * ratio));

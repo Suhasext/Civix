@@ -1,106 +1,95 @@
 import { seedTickets } from "../data/seed";
-import { DEPARTMENT_BY_CATEGORY, SEVERITY_RANK, STATUSES, type ManagedTicket, type OfficerEdit, type Ticket } from "./ticket";
+import { DEPARTMENT_BY_CATEGORY, DEMO_CITIZEN_ID, type ManagedTicket, type OfficerEdit, type Resolution, type Ticket, type Severity, type LocationEvidence } from "./ticket";
 
-const key = "civiclens.tickets.v1";
+const key = "civix.tickets.v3";
 
-function normalize(rows: (Ticket & Partial<ManagedTicket>)[]): ManagedTicket[] {
-  const used = new Set<string>();
-  let next = rows.reduce((max, row) => /^CL-\d{4,}$/.test(row.id) ? Math.max(max, Number(row.id.slice(3))) : max, 1000) + 1;
-  return rows.map(row => {
-    let id = row.id;
-    if (!/^CL-\d{4,}$/.test(id) || used.has(id)) id = `CL-${next++}`;
-    used.add(id);
-    const officerAdjusted = row.officerAdjusted === true;
-    const department = officerAdjusted && Object.values(DEPARTMENT_BY_CATEGORY).includes(row.department)
-      ? row.department : DEPARTMENT_BY_CATEGORY[row.category];
-    return { ...row, id, department, officerAdjusted,
-      status: row.status && STATUSES.includes(row.status) ? row.status : "New" };
-  });
-}
-
-function save(tickets: Ticket[]) {
-  localStorage.setItem(key, JSON.stringify(tickets));
-}
+function save(tickets: ManagedTicket[]) { localStorage.setItem(key, JSON.stringify(tickets)); }
 
 export function resetTickets() {
-  const tickets = normalize(seedTickets());
+  const tickets: ManagedTicket[] = seedTickets().map((ticket, index) => {
+    const status = index === 1 ? "In Progress" : index === 2 ? "Acknowledged" : index === 5 ? "Resolved" : "New";
+    const resolution: Resolution | undefined = index === 5 ? {
+      afterPhotoDataUrl: "", note: "Pothole filled and levelled.", resolvedAt: ticket.createdAt,
+      locationCheck: { result: "same", distanceM: 40 },
+      aiCheck: { verdict: "Appears fixed", reason: "Demo data: no photos were compared.", samePlaceLikely: true },
+    } : undefined;
+    return { ...ticket, id: `CL-${1001 + index}`, status, officerAdjusted: false,
+      reporterId: [2,4,5,6].includes(index) ? DEMO_CITIZEN_ID : "demo-other-citizen",
+      reopenCount: 0, updatedAt: ticket.createdAt, resolution,
+      history: [{ at: ticket.createdAt, status: "New", by: "system" }] };
+  });
   save(tickets);
   return tickets;
-}
-
-function validStoredTicket(item: Ticket) {
-  return item && [item.originalText, item.englishSummary, item.detectedLanguage, item.severityReason].every(
-    value => typeof value === "string" && value.trim()
-  ) && Number.isFinite(Date.parse(item.createdAt)) && Object.hasOwn(DEPARTMENT_BY_CATEGORY, item.category)
-    && Object.hasOwn(SEVERITY_RANK, item.severity) && ["ai", "fallback"].includes(item.source)
-    && typeof item.needsManualReview === "boolean"
-    && (item.photoDataUrl == null || typeof item.photoDataUrl === "string")
-    && (item.photoObservation == null || typeof item.photoObservation === "string");
 }
 
 export function loadTickets(): ManagedTicket[] {
   const raw = localStorage.getItem(key);
   if (raw !== null) {
-    let rows;
     try {
-      rows = JSON.parse(raw);
-    } catch { return resetTickets(); }
-    if (Array.isArray(rows) && rows.every(validStoredTicket)) {
-      const tickets = normalize(rows);
-      if (JSON.stringify(tickets) !== raw) save(tickets);
-      return tickets;
-    }
+      const tickets = JSON.parse(raw);
+      if (Array.isArray(tickets) && tickets.every(t => t && typeof t.id === "string" && t.category in DEPARTMENT_BY_CATEGORY)) return tickets;
+    } catch { /* Restore the demo if the data cannot be read. */ }
   }
   return resetTickets();
 }
 
-export function addTicket(input: Ticket) {
+export function addTicket(input: Ticket, reportLocation?: LocationEvidence) {
   const rows = loadTickets();
-  let ticket = normalize([...rows, input]).at(-1)!;
-  try {
-    save([...rows, ticket]);
-  } catch (error) {
+  const next = Math.max(1000, ...rows.map(t => Number(t.id.slice(3)) || 0)) + 1;
+  let ticket: ManagedTicket = { ...input, id: `CL-${next}`, status: "New", officerAdjusted: false,
+    reporterId: DEMO_CITIZEN_ID, reportLocation, reopenCount: 0, updatedAt: input.createdAt,
+    history: [{ at: input.createdAt, status: "New", by: "citizen" }] };
+  try { save([...rows, ticket]); }
+  catch (error) {
     if (!(error instanceof DOMException && error.name === "QuotaExceededError" && ticket.photoDataUrl)) throw error;
-    ticket = { ...ticket, photoDataUrl: undefined };
-    save([...rows, ticket]);
+    ticket = { ...ticket, photoDataUrl: undefined }; save([...rows, ticket]);
   }
   return { ticket, rows: [...rows, ticket] };
 }
 
-export function editTicket(id: string, edit: OfficerEdit) {
-  const rows = loadTickets().map(ticket => ticket.id !== id ? ticket : {
-    ...ticket, ...edit,
-    history: edit.status === "Resolved" && ticket.status !== "Resolved"
-      ? [...(ticket.history ?? []), { type: "resolved" as const, at: new Date().toISOString() }]
-      : ticket.history,
-    officerAdjusted: ticket.officerAdjusted || edit.severity !== undefined || edit.department !== undefined,
+export function editTicket(id: string, edit: OfficerEdit & { officerNote?: string }) {
+  const rows = loadTickets().map(ticket => {
+    if (ticket.id !== id) return ticket;
+    const now = new Date().toISOString();
+    const status = edit.status ?? ticket.status;
+    const noteChanged = edit.officerNote !== undefined && edit.officerNote !== ticket.officerNote;
+    const event = status !== ticket.status || noteChanged;
+    return { ...ticket, ...edit, updatedAt: now,
+      officerAdjusted: ticket.officerAdjusted || edit.severity !== undefined || edit.department !== undefined,
+      history: event ? [...(ticket.history ?? []), { at: now, status, by: "officer" as const, note: noteChanged ? edit.officerNote : undefined }] : ticket.history };
   });
-  save(rows);
-  return rows;
+  save(rows); return rows;
 }
 
-
-export function reopenTicket(id: string, explanation: string) {
-  const message = explanation.trim();
-  if (!message) throw new Error("Explain why the issue is still unresolved.");
+export function resolveTicket(id: string, resolution: Resolution) {
   const rows = loadTickets();
   const ticket = rows.find(row => row.id === id);
-  if (!ticket || ticket.status !== "Resolved") throw new Error("This ticket is no longer resolved. Refresh its status and try again.");
-  ticket.history = [...(ticket.history ?? []), { type: "reopened", at: new Date().toISOString(), explanation: message }];
-  ticket.status = "In Progress";
-  save(rows);
-  return rows;
+  if (!ticket || !resolution.afterPhotoDataUrl || resolution.note.trim().length < 10) throw new Error("An after photo and a note of at least 10 characters are required.");
+  const now = new Date().toISOString();
+  ticket.status = "Resolved"; ticket.resolution = resolution; ticket.citizenResponse = undefined; ticket.updatedAt = now;
+  ticket.history = [...(ticket.history ?? []), { at: now, status: "Resolved", by: "officer", note: resolution.note }];
+  try { save(rows); return { rows, photoSaved: true }; }
+  catch (error) {
+    if (!(error instanceof DOMException && error.name === "QuotaExceededError")) throw error;
+    ticket.resolution = { ...resolution, afterPhotoDataUrl: "" }; save(rows);
+    return { rows, photoSaved: false };
+  }
 }
-export function resolveTickets(ids: string[]) {
-  const selected = new Set(ids);
-  const rows = loadTickets().map(ticket => {
-    if (!selected.has(ticket.id) || ticket.status === "Resolved") return ticket;
-    return {
-      ...ticket,
-      status: "Resolved" as const,
-      history: [...(ticket.history ?? []), { type: "resolved" as const, at: new Date().toISOString() }],
-    };
-  });
-  save(rows);
-  return rows;
+
+export function respondToTicket(id: string, choice: "confirmed" | "disputed", reason = "") {
+  const rows = loadTickets();
+  const ticket = rows.find(row => row.id === id && row.reporterId === DEMO_CITIZEN_ID);
+  if (!ticket || ticket.status !== "Resolved" || ticket.citizenResponse) throw new Error("This ticket is no longer awaiting your response.");
+  if (choice === "disputed" && reason.trim().length < 5) throw new Error("Enter at least 5 characters.");
+  const now = new Date().toISOString();
+  ticket.citizenResponse = { choice, reason: reason.trim() || undefined, respondedAt: now };
+  ticket.updatedAt = now;
+  if (choice === "disputed") {
+    const levels: Severity[] = ["Low", "Medium", "High", "Critical"];
+    ticket.originalSeverity ??= ticket.severity;
+    ticket.severity = levels[Math.min(levels.indexOf(ticket.severity) + 1, levels.length - 1)];
+    ticket.reopenCount = (ticket.reopenCount ?? 0) + 1; ticket.status = "Reopened";
+  }
+  ticket.history = [...(ticket.history ?? []), { at: now, status: ticket.status, by: "citizen", note: choice === "confirmed" ? "Citizen confirmed" : reason.trim() }];
+  save(rows); return rows;
 }

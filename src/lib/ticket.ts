@@ -48,8 +48,12 @@ export const DEPARTMENT_BY_CATEGORY = {
   Other: "General Grievance Cell",
 } as const satisfies Record<Category, Department>;
 
-export const STATUSES = ["New", "In Progress", "Resolved"] as const;
+export const STATUSES = ["New", "Acknowledged", "In Progress", "Resolved", "Reopened"] as const;
 export type Status = typeof STATUSES[number];
-export type TicketEvent = { type: "resolved" | "reopened"; at: string; explanation?: string };
-export type ManagedTicket = Ticket & { status: Status; officerAdjusted: boolean; history?: TicketEvent[] };
+export const DEMO_CITIZEN_ID = "demo-citizen";
+export type LocationEvidence = { lat: number; lng: number; accuracyM: number; capturedAt: string };
+export type LocationCheck = { result: "same" | "different" | "inconclusive" | "unavailable"; distanceM?: number };
+export type Resolution = { afterPhotoDataUrl: string; note: string; resolvedAt: string; location?: LocationEvidence; locationCheck: LocationCheck; aiCheck?: { verdict: "Appears fixed" | "Unclear" | "Doesn't appear fixed"; reason: string; samePlaceLikely: boolean } };
+export type TicketEvent = { at: string; status: Status; by: "citizen" | "officer" | "system"; note?: string };
+export type ManagedTicket = Ticket & { status: Status; officerAdjusted: boolean; history?: TicketEvent[]; reporterId?: string; reportLocation?: LocationEvidence; resolution?: Resolution; citizenResponse?: { choice: "confirmed" | "disputed"; reason?: string; respondedAt: string }; reopenCount?: number; originalSeverity?: Severity; officerNote?: string; updatedAt?: string };
 export type OfficerEdit = Partial<Pick<ManagedTicket, "status" | "department" | "severity">>;
