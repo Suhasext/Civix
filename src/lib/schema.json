@@ -1,0 +1,54 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "detectedLanguage": {
+      "type": "STRING",
+      "description": "Language of the complaint text, in English, e.g. English, Hindi, Kannada, Tamil."
+    },
+    "englishSummary": {
+      "type": "STRING",
+      "description": "Faithful English summary of the complaint, max 25 words. Mention the problem and the place/landmark if given."
+    },
+    "category": {
+      "type": "STRING",
+      "enum": ["Roads", "Waste", "Water", "Electricity", "Trees", "Drainage", "Other"]
+    },
+    "severity": {
+      "type": "STRING",
+      "enum": ["Low", "Medium", "High", "Critical"]
+    },
+    "severityReason": {
+      "type": "STRING",
+      "description": "One sentence, max 20 words, naming the specific factor that decided the severity."
+    },
+    "department": {
+      "type": "STRING",
+      "enum": [
+        "Roads & Infrastructure Department",
+        "Solid Waste Management",
+        "Water Supply & Sewerage Board",
+        "Electrical & Street Lighting Department",
+        "Parks & Tree Management",
+        "Storm Water Drainage Department",
+        "General Grievance Cell"
+      ]
+    },
+    "photoObservation": {
+      "type": "STRING",
+      "nullable": true,
+      "description": "One sentence on what the photo shows that is relevant to the complaint. Null if no photo was provided."
+    },
+    "needsManualReview": {
+      "type": "BOOLEAN",
+      "description": "True if the complaint is too vague, contradictory, or the text and photo disagree."
+    }
+  },
+  "required": [
+    "detectedLanguage", "englishSummary", "category", "severity",
+    "severityReason", "department", "needsManualReview"
+  ],
+  "propertyOrdering": [
+    "detectedLanguage", "englishSummary", "category", "severity",
+    "severityReason", "department", "photoObservation", "needsManualReview"
+  ]
+}
