@@ -35,9 +35,9 @@ export function IntakeForm({onSave, active}: {active: boolean; onSave: (rows: Ma
     } catch { setError(t("Your ticket could not be saved. Check browser storage and try again.")); }
     finally { setLoading(false); }
   }
-  return <section><div className="intro"><h1>{t("Report an issue")}</h1><p>{t("Describe a municipal issue to receive a trackable triage receipt.")}</p></div>
-    <div className="layout"><form className="panel form" onSubmit={submit}>
-      <h2>{t("Complaint details")}</h2><fieldset disabled={loading || processing}>
+  return <section><div className="intro"><div className="intro-copy"><h1>{t("Report an issue")}</h1><p>{t("Describe a municipal issue to receive a trackable triage receipt.")}</p></div></div>
+    <div className="layout intake-layout"><form className="panel form intake-form" onSubmit={submit}>
+      <h2 className="folder-strip">{t("Complaint details")}</h2><fieldset disabled={loading || processing}>
       <label htmlFor="complaint">{t("Describe the issue")}</label>
       <p id="languages" className="hint">{t("Write in English, Hindi, Kannada or Tamil.")}</p>
       <textarea ref={input} id="complaint" aria-describedby="languages privacy" value={text} onChange={e => setText(e.target.value)} placeholder={t("What happened, and where did you notice it?")}/>
@@ -63,7 +63,7 @@ export function IntakeForm({onSave, active}: {active: boolean; onSave: (rows: Ma
       <p id="privacy" className="privacy"><ShieldCheck size={17}/>{t("Do not include personal details. Text and photos are sent to Gemini for triage.")}</p>
       {error && <p role="alert" className="notice">{error}</p>}
       <button className="primary" disabled={loading || processing || voiceBusy}>{loading ? t("Analyzing & Routing...") : processing ? t("Preparing photo…") : t("Submit complaint")}<ArrowRight size={18}/></button>
-    </form><aside className="panel samples"><h2>{t("Quick Demo Samples")}</h2><p>{t("Choose a sample to fill the report in one click.")}</p>
+    </form><aside className="panel samples"><h2 className="folder-strip">{t("Quick Demo Samples")}</h2><p>{t("Choose a sample to fill the report in one click.")}</p>
       {samples.map(([language, title, complaint]) => <button key={language} disabled={loading || processing} onClick={() => {
         setText(complaint); setError(""); input.current?.focus();
       }}><span><small>{language}</small><strong>{t(title)}</strong></span><ArrowUpRight size={17}/></button>)}

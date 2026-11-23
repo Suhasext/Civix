@@ -2,7 +2,7 @@ import { defineConfig, loadEnv, type Connect, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-function speechToText(apiKey: string): Plugin {
+function speechToText(env: Record<string, string>): Plugin {
   const middleware: Connect.NextHandleFunction = async (request, response, next) => {
     if (request.url?.split("?")[0] !== "/api/transcribe") return next();
     const send = (status: number, error: string) => {
@@ -15,7 +15,12 @@ function speechToText(apiKey: string): Plugin {
     if (origin && origin !== `http://${request.headers.host}` && origin !== `https://${request.headers.host}`) {
       return send(403, "Request origin is not allowed.");
     }
-    if (!apiKey) return send(503, "Speech transcription is not configured.");
+    const apiKey = env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY;
+        if (!apiKey) {
+          const error = "Missing ELEVENLABS_API_KEY in server environment";
+          console.error(error);
+          return send(500, error);
+        }
     const mime = (request.headers["content-type"] ?? "").split(";")[0];
     if (!["audio/webm", "audio/ogg", "audio/mp4", "audio/m4a"].includes(mime)) return send(415, "Unsupported recording format.");
     const chunks: Uint8Array[] = [];
@@ -37,15 +42,21 @@ function speechToText(apiKey: string): Plugin {
       const upstream = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
         method: "POST", headers: { "xi-api-key": apiKey }, body: form, signal: AbortSignal.timeout(30000),
       });
-      if (!upstream.ok) return send(502, "Speech transcription service is unavailable.");
+      if (!upstream.ok) {
+              const body = await upstream.text();
+              console.error("ElevenLabs speech-to-text failed:", upstream.status, body);
+              return send(502, `ElevenLabs speech-to-text failed (HTTP ${upstream.status}): ${body || upstream.statusText || "Empty error response"}`);
+            }
       const data: unknown = await upstream.json();
       if (!data || typeof data !== "object" || !("text" in data) || typeof data.text !== "string") {
         return send(502, "Speech transcription returned an invalid response.");
       }
       response.setHeader("Content-Type", "application/json");
       response.end(JSON.stringify({ text: data.text }));
-    } catch {
-      if (!response.headersSent) send(502, "Speech transcription service is unavailable.");
+    } catch (error) {
+      const message = `Speech transcription failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error(message);
+      if (!response.headersSent) send(502, message);
     }
   };
   return {
@@ -55,6 +66,9 @@ function speechToText(apiKey: string): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss(), speechToText(loadEnv(mode, process.cwd(), "").ELEVENLABS_API_KEY ?? "")],
-}));
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
+    plugins: [react(), tailwindcss(), speechToText(env)],
+  };
+});

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Landmark } from "lucide-react";
+import { ArrowLeft, Landmark } from "lucide-react";
+import { ArchiveDesk } from "./components/ArchiveDesk";
+import { CursorTrail } from "./components/CursorTrail";
 import { Dashboard } from "./components/Dashboard";
 import { IntakeForm } from "./components/IntakeForm";
 import { TrackTicket } from "./components/TrackTicket";
@@ -32,18 +34,14 @@ function App() {
     window.addEventListener("storage",refresh);return ()=>window.removeEventListener("storage",refresh);
   },[]);
   function choose(value:"citizen"|"officer") {localStorage.setItem("civix.role",value);setRole(value);setView(value==="citizen"?"Report an issue":"Priority queue");}
-  return <I18nContext.Provider value={{ language, t }}><header><div className="bar"><div className="brand"><Landmark/><div>Civix<small>{t("Municipal AI Triage")}</small></div></div>
-    <nav aria-label={language === "hi" ? "मुख्य नेविगेशन" : language === "kn" ? "ಮುಖ್ಯ ನ್ಯಾವಿಗೇಶನ್" : "Main navigation"}>
-      <label className="language-picker"><span className="sr-only">{language === "hi" ? "भाषा" : language === "kn" ? "ಭಾಷೆ" : "Language"}</span>
-        <select aria-label={language === "hi" ? "भाषा" : language === "kn" ? "ಭಾಷೆ" : "Language"} value={language} onChange={event => setLanguage(event.target.value as Language)}>
-          <option value="en">English</option><option value="hi">हिन्दी</option><option value="kn">ಕನ್ನಡ</option>
-        </select>
-      </label>
-    {role && <><span>{t(role==="citizen"?"Citizen":"Officer")} · {t("Demo mode")}</span>
-      {role==="citizen" && ["Report an issue","My reports"].map(name=><button key={name} aria-current={view===name?"page":undefined} onClick={()=>setView(name)}>{t(name)}</button>)}
-      <button onClick={()=>{localStorage.removeItem("civix.role");setRole(null);}}>{t("Switch role")}</button></>}</nav></div></header>
-    <main>{!role ? <section className="panel form role-select"><h1>{t("Welcome to Civix")}</h1><p>{t("Demo mode")}</p>
-      <div className="pills"><button onClick={()=>choose("citizen")}>{t("Continue as Citizen")}</button><button onClick={()=>choose("officer")}>{t("Continue as Officer")}</button></div></section> :
+  return <I18nContext.Provider value={{ language, t }}><CursorTrail/><div className="drafting-backdrop" aria-hidden="true"/><div className="drafting-frame" aria-hidden="true"><i className="registration registration--tl"/><i className="registration registration--tr"/><i className="registration registration--bl"/><i className="registration registration--br"/></div><header className="app-header"><div className="bar"><div className="brand"><Landmark/><div>Civix<small>{t("Municipal AI Triage")}</small></div></div>
+    <nav className="app-nav" aria-label={language === "hi" ? "मुख्य नेविगेशन" : language === "kn" ? "ಮುಖ್ಯ ನ್ಯಾವಿಗೇಶನ್" : "Main navigation"}>
+      {role && <button className="tactile-key switch-desk" onClick={()=>{localStorage.removeItem("civix.role");setRole(null);}}><ArrowLeft size={14} aria-hidden="true"/>{t("Switch Desk")}</button>}
+      <div className="language-rocker" role="group" aria-label={language === "hi" ? "भाषा" : language === "kn" ? "ಭಾಷೆ" : "Language"}>
+        {(["en", "hi", "kn"] as const).map(code => <button key={code} type="button" aria-label={code === "en" ? "English" : code === "hi" ? "हिन्दी" : "ಕನ್ನಡ"} aria-pressed={language === code} onClick={() => setLanguage(code)}>{code.toUpperCase()}</button>)}
+      </div>
+      {role==="citizen" && <div className="nav-switch">{["Report an issue","My reports"].map(name=><button key={name} aria-current={view===name?"page":undefined} onClick={()=>setView(name)}>{t(name)}</button>)}</div>}</nav></div></header>
+    <main className={!role ? "landing-workspace" : undefined}>{!role ? <ArchiveDesk onChoose={choose}/> :
       role==="citizen" ? <><div hidden={view!=="Report an issue"}><IntakeForm active={view==="Report an issue"} onSave={(rows,_ticket,message)=>{setTickets(rows);setNotice(message);setView("My reports");}}/></div>
       {view==="My reports" && <>{notice && <p className="notice" role="status">{notice}</p>}<TrackTicket tickets={tickets.filter(t=>t.reporterId===DEMO_CITIZEN_ID)} onRespond={(id,choice,reason)=>setTickets(respondToTicket(id,choice,reason))}/></>}</> :
       <Dashboard tickets={tickets} onEdit={(id,edit)=>setTickets(editTicket(id,edit))} onResolve={(id,resolution)=>{const result=resolveTicket(id,resolution);setTickets(result.rows);if(!result.photoSaved)alert(language === "hi" ? "स्टोरेज भर गया है। समाधान बाद की फ़ोटो के बिना सहेजा गया।" : language === "kn" ? "ಸಂಗ್ರಹಣೆ ತುಂಬಿದೆ. ನಂತರದ ಫೋಟೋ ಇಲ್ಲದೆ ಪರಿಹಾರವನ್ನು ಉಳಿಸಲಾಗಿದೆ." : "Storage is full. Resolution was saved without the after photo.");}} onReset={()=>setTickets(resetTickets())}/>}</main></I18nContext.Provider>;
